@@ -1,0 +1,59 @@
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: claims-assistant-api
+
+    ports:
+      - "8000:8000"
+
+    env_file:
+      - .env
+
+    environment:
+      DATABASE_PATH: /app/data/claims.db
+      REDIS_URL: redis://redis:6379/0
+
+    volumes:
+      - claims_data:/app/data
+
+    depends_on:
+      redis:
+        condition: service_healthy
+
+    restart: unless-stopped
+
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  redis:
+    image: redis:7-alpine
+    container_name: claims-assistant-redis
+
+    command: ["redis-server", "--save", "60", "1", "--appendonly", "yes"]
+
+    volumes:
+      - redis_data:/data
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  claims_data:
+  redis_data:
